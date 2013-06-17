@@ -5,14 +5,14 @@ local test = step_class()
 package.loaded['busted.test'] = test  -- pre-set to prevent require loops
 
 -- instance initialization
-function test:_init(f)
-  self:super("test handler", f)   -- initialize ancestor; step object
+function test:_init(desc, f)
+  self:super(desc, f)   -- initialize ancestor; step object
   self.type = "test"
 end
 
 -- added 'flushed' property
 function test:reset()
-  assert(test:class_of(self), "expected self to be a before_each class")
+  assert(test:class_of(self), "expected self to be a test class")
   self:base("reset")          -- call ancestor
   self.flushed = nil          -- if thruthy, then output was already written
 end
@@ -23,7 +23,7 @@ function test:before_execution(before_complete_cb)
   
   local function error_check()
     -- if an error in before_each, then copy it into test and do not exeucte test
-    if self.parent.before_each.status.type ~= "success" then
+    if self.parent.before_each.status.type == "failure" then
       self:mark_failed({
           type = parent.before_each.status.type,
           err = parent.before_each.status.err,
@@ -41,7 +41,7 @@ function test:after_execution(after_complete_cb)
   
   local function error_check()
     -- if an error in after_each, then copy it into test and do not exeucte test
-    if self.parent.after_each.status.type ~= "success" then
+    if self.parent.after_each.status.type == "failure" then
       self:mark_failed({
           type = parent.after_each.status.type,
           err = parent.after_each.status.err,

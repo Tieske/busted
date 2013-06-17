@@ -24,7 +24,7 @@ end
 function after_each:after_execution(after_complete_cb)
   
   local function check_error()
-    if self.parent.parent.after_each.status.type ~= "success" and self.status.type == "success" then
+    if self.parent.parent.after_each.status.type == "failure" and self.status.type ~= "failure" then
       self:mark_failed({
           type = self.parent.parent.after_each.status.type,
           err = self.parent.parent.after_each.status.err,

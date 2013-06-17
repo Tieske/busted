@@ -43,7 +43,7 @@ function step:reset()
   self.started = false                    -- has execution started
   self.finished = false                   -- has execution been completed
   self.status = {                         -- contains the results of the step
-    type = 'success',                     -- result, either 'success' or 'failure'
+    type = 'success',                     -- result, either 'success', 'failure' or 'pending'
     err = nil,                            -- error message in case of failure
     trace = nil,                          -- stacktrace in case of a failure
   }
@@ -69,7 +69,7 @@ function step:execute(step_complete_cb)
   end
   
   local before_complete = function()
-    if self.status.type == "success" then
+    if self.status.type ~= "failure" then
       return self:_execute(execute_complete)
     else
       return execute_complete() -- error occured, so skip execution and go to after handler
@@ -94,7 +94,7 @@ function step:_execute(execute_complete_cb)
     end
     
     if self.done_trace then
-      if self.status.type == "success" then
+      if self.status.type ~= "failure" then
         local _, stack_trace = moon.rewrite_traceback(nil, debug.traceback("", 2))
         self.status.err = 'test already "done":"'..self.description..'"' 
         self.status.err = self.status.err..'. First called from '..self.done_trace

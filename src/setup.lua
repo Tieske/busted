@@ -13,8 +13,8 @@ end
 -- registers a setup error properly
 function setup:after_execution(after_complete_cb)
   assert(setup:class_of(self), "expected self to be a setup class")
-  if self.status.type ~= "success" then
-    -- if setup failed, set error in first test
+  if self.status.type == "failure" then
+    -- setup failed, set error in first test
     self.parent:firsttest():mark_failed({
         type = self.status.type,
         trace = self.status.trace,

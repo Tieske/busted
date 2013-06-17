@@ -13,7 +13,7 @@ end
 -- registers a teardown error properly
 function teardown:after_execution(after_complete_cb)
   assert(teardown:class_of(self), "expected self to be a teardown class")
-  if self.status.type ~= "success" then
+  if self.status.type == "failure" then
     -- if teardown failed, set error in last test, but only if it doesn't already have an error
     self.parent:lasttest():mark_failed({
         type = self.status.type,

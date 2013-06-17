@@ -20,7 +20,7 @@ end
 -- Execute the entire before_each chain
 function before_each:before_execution(before_complete_cb)
   local function check_error()
-    if self.parent.parent.before_each.status.type ~= "success" then
+    if self.parent.parent.before_each.status.type == "failure" then
       self:mark_failed({
           type = self.parent.parent.after_each.status.type,
           err = self.parent.parent.after_each.status.err,

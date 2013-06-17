@@ -31,7 +31,8 @@ local test_class        = require('busted.test')
 local pending_class     = require('busted.pending')
 local after_each_class  = require('busted.after_each')
 local teardown_class    = require('busted.teardown')
-local root_context = context_class("Root-context")
+
+local root_context = context_class(nil, "Root-context")
 local current_context = root_context
 local options = {}
 
@@ -60,21 +61,27 @@ system = nil
 
 
 -- report a test-process error as a failed test
+local err_context
 local internal_error = function(description, err)
   local tag = ""
   if options.tags and #options.tags > 0 then
     -- tags specified; must insert a tag to make sure the error gets displayed
     tag = " #"..options.tags[1]
   end
-  if not current_context then
-    busted.reset()
+  
+  -- if no error context yet, create it now
+  if not err_context then
+    local c = current_context
+    current_context = root_context
+    busted.describe("Busted process errors occured" .. tag, function() end)
+    err_context = current_context.list[#current_context.list]
+    current_context = c
   end
-
-  busted.describe("Busted process errors occured" .. tag, function()
-    busted.it(description .. tag, function()
-      error(err)
-    end)
-  end)
+  -- load error into the error context
+  local c = current_context
+  current_context = err_context
+  busted.it(description .. tag, function() error(err) end)
+  current_context = c
 end
 
 -- returns current time in seconds
@@ -520,31 +527,29 @@ end
 --]]
 
 busted.describe = function(desc, more)
-  local context = context_class(desc)
-  current_context:add_context(context)
+  local context = context_class(current_context, desc)
   
   current_context = context
   
-  more()   -- load the context
-  assert(current_context:firsttest(), "Context cannot be empty, at least one test or pending test is required")
+  more()   -- load the context contents
   
   current_context = context.parent
 end
 
 busted.setup = function(setup_func)
-  current_context.setup = setup_class(setup_func)
+  setup_class(current_context, setup_func)
 end
 
 busted.before_each = function(before_func)
-  current_context.before_each = before_each_class(before_func)
+  before_each_class(current_context, before_func)
 end
 
 busted.teardown = function(teardown_func)
-  current_context.teardown = teardown_class(teardown_func)
+  teardown_class(current_context, teardown_func)
 end
 
 busted.after_each = function(after_func)
-  current_context.after_each = after_each_class(after_func)
+  after_each_class(current_context, after_func)
 end
 
 local function buildInfo(debug_info)
@@ -565,13 +570,13 @@ end
 
 busted.pending = function(name)
   if match_tags(name) then
-    current_context:add_test(pending_class(name, buildInfo(debug.getinfo(2))))
+    pending_class(current_context, name, buildInfo(debug.getinfo(2)))
   end
 end
 
 busted.it = function(name, test_func)
   if match_tags(name) then
-    current_context:add_test(test_class(name, test_func, buildInfo(debug.getinfo(2))))
+    test_class(current_context, name, test_func, buildInfo(debug.getinfo(2)))
   end
 end
 
@@ -650,9 +655,9 @@ busted.run = function(got_options)
   local failures = 0
   local tests = 0
 
-  -- load files
+  -- load files, each inside its own context
   for i, filename in ipairs(options.filelist) do
-    root_context = busted.describe("Context for '"..filename.."'", 
+    busted.describe("Context for '"..filename.."'", 
       function()
         load_testfile(filename)
       end)

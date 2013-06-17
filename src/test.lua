@@ -6,9 +6,10 @@ local test = class(step_class)
 package.loaded['busted.test'] = test  -- pre-set to prevent require loops
 
 -- instance initialization
-function test:_init(desc, f, info)
-  self:super(desc, f, info)   -- initialize ancestor; step object
+function test:_init(context, desc, f, info)
+  self:super(context, desc, f, info)   -- initialize ancestor; step object
   self.type = "test"
+  context:add_test(self)
 end
 
 -- added 'flushed' property

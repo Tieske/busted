@@ -7,6 +7,7 @@ local moon = require('busted.moon')
 local pretty = require('pl.pretty')
 local class = require('pl.class')
 local busted = require('busted.core')
+local context_class = require('busted.context')
 
 -- module/object table
 local step = class()
@@ -27,10 +28,11 @@ local syncwrapper = function(self, f)
 end
 
 -- instance initialization
-function step:_init(desc, f, info)
+function step:_init(context, desc, f, info)
+  assert(context_class:class_of(context), "Expected parent to be a context class")
   assert(desc, "Must provide a description")
   assert(type(f) == "function", "Must provide a step function")
-  self.parent = nil                       -- parent context
+  self.parent = context                   -- parent context
   self.f = f                              -- function containing the test step
   self.description = desc                 -- textual description
   self.type = "step"                      -- either; step (only as baseclass, not used), setup, teardown, test, before/after_each
@@ -51,7 +53,7 @@ function step:reset()
   }
   self.done_trace = nil                   -- first stacktrace of 'done' callback to track multiple calls
   self.step_is_async = nil                -- detection of step being sync/async
-  self.loop = (self.parent or {}).loop
+  self.loop = self.parent.loop
   if self.timer then                      -- timer for the execution step
     self.timer:stop()
     self.timer = nil

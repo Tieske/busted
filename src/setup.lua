@@ -6,9 +6,10 @@ local setup = class(step_class)
 package.loaded['busted.setup'] = setup  -- pre-set to prevent require loops
 
 -- instance initialization
-function setup:_init(f)
-  self:super("setup handler", f)   -- initialize ancestor; step object
+function setup:_init(context, f)
+  self:super(context, "setup handler", f)   -- initialize ancestor; step object
   self.type = "setup"
+  context.setup = self
 end
 
 -- registers a setup error properly

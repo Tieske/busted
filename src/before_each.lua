@@ -6,9 +6,10 @@ local before_each = class(step_class)
 package.loaded['busted.before_each'] = before_each  -- pre-set to prevent require loops
 
 -- instance initialization
-function before_each:_init(f)
-  self:super("before_each handler", f)   -- initialize ancestor; step object
+function before_each:_init(context, f)
+  self:super(context, "before_each handler", f)   -- initialize ancestor; step object
   self.type = "before_each"
+  context.before_each = self  
 end
 
 -- added 'copied_error' property

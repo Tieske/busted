@@ -9,21 +9,28 @@ local after_each_class  = require('busted.after_each')
 local teardown_class    = require('busted.teardown')
 
 -- instance initialization
-function context:_init(desc)
+function context:_init(parent_context, desc)
+  assert(context:class_of(parent_context) or (parent_context == nil), "Expected the parent to be a context class or nil")
   assert(desc, "Must provide a context description")
   local e = function() end
-  self.parent = nil                       -- parent context, or nil if root-context
-  self.setup = setup_class(e)             -- step obj containing setup procedure
-  self.before_each = before_each_class(e) -- step obj containing before_each
-  self.after_each = after_each_class(e)   -- step obj containing after_each
-  self.teardown = teardown_class(e)       -- step obj containing teardown procedure
-  self.list = {}                          -- list with test and context objects, in execution order
-  self.description = desc                 -- textual description
-  self.count = 0                          -- number of tests in context
-  self.cumulative_count = 0               -- number of tests, including nested contexts
+  self.parent = parent_context                  -- parent context, or nil if root-context
+  self.setup = setup_class(self, e)             -- step obj containing setup procedure
+  self.before_each = before_each_class(self, e) -- step obj containing before_each
+  self.after_each = after_each_class(self, e)   -- step obj containing after_each
+  self.teardown = teardown_class(self, e)       -- step obj containing teardown procedure
+  self.list = {}                                -- list with test and context objects, in execution order
+  self.description = desc                       -- textual description
+  self.count = 0                                -- number of tests in context
+  self.cumulative_count = 0                     -- number of tests, including nested contexts
+  self:reset()
+  if parent_context then parent_context:add_context(self) end
+end
+
+-- reset context
+function context:reset()
   self.started = false                    -- has execution started
   self.finished = false                   -- has execution been completed
-  self.loop = nil                         -- contains the loop table to be used
+  self.loop = (self.parent or {}).loop or require('busted.loop.default')  -- contains the loop table to be used
 end
 
 -- executes context, starts with setup, then tests and nested describes, end with teardown
@@ -57,13 +64,19 @@ function context:execute(context_complete_cb)
   end
   
   -- prepare for execution
-  self.loop = self.loop or (self.parent or {}).loop or require('busted.loop.default')
+  self:reset()
   self.started = true
   -- start chain by executing setup and start looping until done
-  self.setup:execute(do_next_step)
-  while not self.finished do
-    self.loop.step()
+  if not self:firsttest() then
+    -- we have no tests to run, so do not execute anything, just finish
+    return on_teardown_complete()
+  else
+    self.setup:execute(do_next_step)
+    while not self.finished do
+      self.loop.step()
+    end
   end
+
 end
 
 -- mark all tests and sub-context as failed with a specific status

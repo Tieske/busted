@@ -6,9 +6,10 @@ local after_each = class(step_class)
 package.loaded['busted.after_each'] = after_each  -- pre-set to prevent require loops
 
 -- instance initialization
-function after_each:_init(f)
-  self:super("after_each handler", f)   -- initialize ancestor; step object
+function after_each:_init(context, f)
+  self:super(context, "after_each handler", f)   -- initialize ancestor; step object
   self.type = "after_each"
+  context.after_each = self
 end
 
 

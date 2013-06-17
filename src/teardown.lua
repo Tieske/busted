@@ -6,9 +6,10 @@ local teardown = class(step_class)
 package.loaded['busted.teardown'] = teardown  -- pre-set to prevent require loops
 
 -- instance initialization
-function teardown:_init(f)
-  self:super("teardown handler", f)   -- initialize ancestor; step object
+function teardown:_init(context, f)
+  self:super(context, "teardown handler", f)   -- initialize ancestor; step object
   self.type = "teardown"
+  context.teardown = self
 end
 
 -- registers a teardown error properly

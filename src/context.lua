@@ -59,8 +59,11 @@ function context:execute(context_complete_cb)
   -- prepare for execution
   self.loop = self.loop or (self.parent or {}).loop or require('busted.loop.default')
   self.started = true
-  -- start chain by executing setup
-  return self.setup:execute(do_next_step)
+  -- start chain by executing setup and start looping until done
+  self.setup:execute(do_next_step)
+  while not self.finished do
+    self.loop.step()
+  end
 end
 
 -- mark all tests and sub-context as failed with a specific status
@@ -127,6 +130,21 @@ function context:lasttest()
   local t = self.list[#self.list]
   if context:class_of(t) then return t:lasttest() end
   return t
+end
+
+-- returns the currently executing step (can be setup, teardown, before_each, test, pending, etc.)
+function context:currentstep()
+  if not self.started or self.finished then return nil end
+  if self.setup.started and not self.setup.finished then return self.setup end
+  if self.before_each.started and not self.before_each.finished then return self.before_each end
+  if self.after_each.started and not self.after_each.finished then return self.after_each end
+  if self.teardown.started and not self.teardown.finished then return self.teardown end
+  for _, elem in ipairs(self.list) do
+    if elem.started and not elem.finished then
+      if context:class_of(elem) then return elem:currentstep() end -- get it from a sub-context
+      return elem 
+    end
+  end
 end
 
 return context

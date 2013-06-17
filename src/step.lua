@@ -27,13 +27,14 @@ local syncwrapper = function(self, f)
 end
 
 -- instance initialization
-function step:_init(desc, f)
+function step:_init(desc, f, info)
   assert(desc, "Must provide a description")
   assert(type(f) == "function", "Must provide a step function")
-  self.parent = nil                       -- parent context, or nil if root-context
+  self.parent = nil                       -- parent context
   self.f = f                              -- function containing the test step
   self.description = desc                 -- textual description
   self.type = "step"                      -- either; step (only as baseclass, not used), setup, teardown, test, before/after_each
+  self.status = { buildInfo = info }
   self:reset()
 end
 
@@ -46,10 +47,11 @@ function step:reset()
     type = 'success',                     -- result, either 'success', 'failure' or 'pending'
     err = nil,                            -- error message in case of failure
     trace = nil,                          -- stacktrace in case of a failure
+    buildInfo = self.status.buildInfo,    -- debug info containing test definition location etc. (do NOT reset!)
   }
   self.done_trace = nil                   -- first stacktrace of 'done' callback to track multiple calls
   self.step_is_async = nil                -- detection of step being sync/async
-  self.loop = self.parent.loop
+  self.loop = (self.parent or {}).loop
   if self.timer then                      -- timer for the execution step
     self.timer:stop()
     self.timer = nil

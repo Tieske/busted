@@ -51,6 +51,14 @@ build = {
     ["busted.loop.default"] = "src/loop/default.lua",
     ["busted.loop.ev"] = "src/loop/ev.lua",
     ["busted.loop.copas"] = "src/loop/copas.lua",
+    ["busted.context"] = "src/context.lua",
+    ["busted.step"] = "src/step.lua",
+    ["busted.setup"] = "src/setup.lua",
+    ["busted.before_each"] = "src/before_each.lua",
+    ["busted.test"] = "src/test.lua",
+    ["busted.pending"] = "src/pending.lua",
+    ["busted.after_each"] = "src/after_each.lua",
+    ["busted.teardown"] = "src/teardown.lua",
   },
   install = {
     bin = {

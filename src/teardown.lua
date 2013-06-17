@@ -1,7 +1,8 @@
 local step_class        = require('busted.step')
+local class             = require('pl.class')
 
 -- module/object table
-local teardown = step_class()
+local teardown = class(step_class)
 package.loaded['busted.teardown'] = teardown  -- pre-set to prevent require loops
 
 -- instance initialization

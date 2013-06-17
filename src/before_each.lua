@@ -1,7 +1,8 @@
 local step_class        = require('busted.step')
+local class             = require('pl.class')
 
 -- module/object table
-local before_each = step_class()
+local before_each = class(step_class)
 package.loaded['busted.before_each'] = before_each  -- pre-set to prevent require loops
 
 -- instance initialization

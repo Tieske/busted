@@ -1,12 +1,13 @@
 local step_class        = require('busted.step')
+local class             = require('pl.class')
 
 -- module/object table
-local test = step_class()
+local test = class(step_class)
 package.loaded['busted.test'] = test  -- pre-set to prevent require loops
 
 -- instance initialization
-function test:_init(desc, f)
-  self:super(desc, f)   -- initialize ancestor; step object
+function test:_init(desc, f, info)
+  self:super(desc, f, info)   -- initialize ancestor; step object
   self.type = "test"
 end
 
@@ -25,15 +26,15 @@ function test:before_execution(before_complete_cb)
     -- if an error in before_each, then copy it into test and do not exeucte test
     if self.parent.before_each.status.type == "failure" then
       self:mark_failed({
-          type = parent.before_each.status.type,
-          err = parent.before_each.status.err,
-          trace = parent.before_each.status.trace,
+          type = self.parent.before_each.status.type,
+          err = self.parent.before_each.status.err,
+          trace = self.parent.before_each.status.trace,
         }, true)
     end
     return before_complete_cb()
   end
   
-  return parent.before_each:execute(error_check)
+  return self.parent.before_each:execute(error_check)
 end
 
 -- execute after_each chain here
@@ -43,15 +44,15 @@ function test:after_execution(after_complete_cb)
     -- if an error in after_each, then copy it into test and do not exeucte test
     if self.parent.after_each.status.type == "failure" then
       self:mark_failed({
-          type = parent.after_each.status.type,
-          err = parent.after_each.status.err,
-          trace = parent.after_each.status.trace,
+          type = self.parent.after_each.status.type,
+          err = self.parent.after_each.status.err,
+          trace = self.parent.after_each.status.trace,
         }, true)
     end
     return after_complete_cb()
   end
   
-  return parent.after_each:execute(error_check)
+  return self.parent.after_each:execute(error_check)
 end
 
 -- flush test results to the outputter

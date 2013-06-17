@@ -1,12 +1,13 @@
 local test_class        = require('busted.test')
+local class             = require('pl.class')
 
 -- module/object table
-local pending = test_class()
+local pending = class(test_class)
 package.loaded['busted.pending'] = pending  -- pre-set to prevent require loops
 
 -- instance initialization
-function pending:_init(desc)
-  self:super(desc, function() end)   -- initialize ancestor; step object
+function pending:_init(desc, info)
+  self:super(desc, function() end, info)   -- initialize ancestor; step object
   self.type = "pending"
 end
 

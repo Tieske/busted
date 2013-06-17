@@ -1,7 +1,8 @@
 local step_class        = require('busted.step')
+local class             = require('pl.class')
 
 -- module/object table
-local setup = step_class()
+local setup = class(step_class)
 package.loaded['busted.setup'] = setup  -- pre-set to prevent require loops
 
 -- instance initialization
@@ -18,15 +19,14 @@ function setup:after_execution(after_complete_cb)
     self.parent:firsttest():mark_failed({
         type = self.status.type,
         trace = self.status.trace,
-        err = "Test not executed, the 'setup' method of context '" .. self.parent.description.."' failed: " .. tostring(self.teardown.status.err)
+        err = "Test not executed, the 'setup' method of context '"..self.parent.description.."' failed: "..tostring(self.teardown.status.err)
       }, true) -- force overwriting existing success status
-    -- update all other test underneith as well
+    -- update all other tests underneith as well
     self.parent:mark_failed({
         type = self.setup.status.type,
         trace = "",
         err = "Test not executed, due to failing 'setup' chain",
       }) 
-    end
   end
   -- call ancestor method
   return self:base("after_execution", after_complete_cb)

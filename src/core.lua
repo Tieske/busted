@@ -21,8 +21,20 @@ busted.defaultlua = 'luajit'
 busted.defaulttimeout = 1  -- in seconds
 busted.lpathprefix = "./src/?.lua;./src/?/?.lua;./src/?/init.lua"
 busted.cpathprefix = path.is_windows and "./csrc/?.dll;./csrc/?/?.dll;" or "./csrc/?.so;./csrc/?/?.so;"
-busted.loop = require('busted.loop.default')
+--busted.loop = require('busted.loop.default')
 require('busted.languages.en')-- Load default language pack
+
+local context_class     = require('busted.context')
+local setup_class       = require('busted.setup')
+local before_each_class = require('busted.before_each')
+local test_class        = require('busted.test')
+local pending_class     = require('busted.pending')
+local after_each_class  = require('busted.after_each')
+local teardown_class    = require('busted.teardown')
+local root_context = context_class("Root-context")
+local current_context = root_context
+local options = {}
+
 
 -- platform detection
 local system, sayer_pre, sayer_post
@@ -46,9 +58,6 @@ else
 end
 system = nil
 
-local options = {}
-local current_context
-local test_is_async
 
 -- report a test-process error as a failed test
 local internal_error = function(description, err)
@@ -208,11 +217,14 @@ end
 -- Test engine
 --=============================
 
+--[[
 local suite = {
   tests = {},       -- list holding all tests
   test_index = 1,
 }
+--]]
 
+--[[
 -- execute a list of steps (functions)
 -- each step gets a callback parameter to commence to the next step
 busted.step = function(...)
@@ -233,18 +245,21 @@ busted.step = function(...)
 
   do_next()
 end
+--]]
 
 -- Required to use on async callbacks. So busted can catch any errors and mark test as failed
 busted.async = function(f)
-  test_is_async = true
+  local active_step = root_context:currentstep()
+  assert(active_step, "currently no test-step is executing")
+  active_step.step_is_async = true
+  
   if not f then
     -- this allows async() to be called on its own to mark any test as async.
     return
   end
-  local test = suite.tests[suite.test_index]
 
   local safef = function(...)
-    local result = { (busted.loop.pcall or pcall)(f, ...) }
+    local result = { (active_step.parent.loop.pcall or pcall)(f, ...) }
 
     if result[1] then
       return unpack(result, 2)
@@ -254,14 +269,11 @@ busted.async = function(f)
         err = pretty.write(err)
       end
 
-      local stack_trace = debug.traceback("", 2)
-      err, stack_trace = moon.rewrite_traceback(err, stack_trace)
+      err, stack_trace = moon.rewrite_traceback(err, debug.traceback("", 2))
 
-      test.status.type = 'failure'
-      test.status.trace = stack_trace
-      test.status.err = err
--- TODO: line below tests 'test.done' to be function, but done may also be a table, callable. Yet no tests failed...      
-      assert(type(test.done) == 'function', 'non-test step failed (before/after/etc.):\n'..err)
+      active_step.status.type = 'failure'
+      active_step.status.trace = stack_trace
+      active_step.status.err = err
       test.done()
     end
   end
@@ -285,6 +297,7 @@ local match_tags = function(testName)
   end
 end
 
+--[[
 -- wraps test callbacks (it, for_each, setup, etc.) to ensure that sync
 -- tests also call the `done` callback to mark the test/step as complete
 local syncwrapper = function(f)
@@ -298,9 +311,11 @@ local syncwrapper = function(f)
     end
   end
 end
+--]]
 
-local next_test
+--local next_test
 
+--[[
 next_test = function()
   local this_test = suite.tests[suite.test_index]
   
@@ -472,8 +487,9 @@ next_test = function()
   table.insert(steps, post_test)
   busted.step(steps)
 end
+--]]
 
-local create_context = function(desc)
+--[[local create_context = function(desc)
   return {
     desc = desc,
     parents = {},
@@ -501,43 +517,34 @@ local create_context = function(desc)
     end
   }
 end
-
+--]]
 
 busted.describe = function(desc, more)
-  local context = create_context(desc)
-
-  for _, parent in ipairs(current_context.parents) do
-    context:add_parent(parent)
-  end
-
-  context:add_parent(current_context)
-
-  local old_context = current_context
-
+  local context = context_class(desc)
+  current_context:add_parent(context)
+  
   current_context = context
-  more()
---TODO: if context is empty; context:firsttest() == nil, then fail it
-  current_context = old_context
+  
+  more()   -- load the context
+  assert(current_context:getfirst(), "Context cannot be empty, at least one test or pending test is required")
+  
+  current_context = context.parent
 end
 
-busted.setup = function(before_func)
-  assert(type(before_func) == "function", "Expected function, got "..type(before_func))
-  current_context.before = syncwrapper(before_func)
+busted.setup = function(setup_func)
+  current_context.setup = setup_class(setup_func)
 end
 
 busted.before_each = function(before_func)
-  assert(type(before_func) == "function", "Expected function, got "..type(before_func))
-  current_context.before_each = syncwrapper(before_func)
+  current_context.before_each = before_each_class(before_func)
 end
 
-busted.teardown = function(after_func)
-  assert(type(after_func) == "function", "Expected function, got "..type(after_func))
-  current_context.after = syncwrapper(after_func)
+busted.teardown = function(teardown_func)
+  current_context.teardown = teardown_class(teardown_func)
 end
 
 busted.after_each = function(after_func)
-  assert(type(after_func) == "function", "Expected function, got "..type(after_func))
-  current_context.after_each = syncwrapper(after_func)
+  current_context.after_each = after_each_class(after_func)
 end
 
 local function buildInfo(debug_info)
@@ -558,43 +565,17 @@ end
 
 busted.pending = function(name)
   if match_tags(name) then
-    local test = {
-      context = current_context,
-      name = name,
-      f = syncwrapper(function() end),
-      started = false,
-      completed = false,
-      status = {
-        description = name,
-        type = 'pending',
-        info = buildInfo(debug.getinfo(2)),
-      }
-    }
-    test.context:increment_test_count()
-    table.insert(suite.tests, test)
+    current_context:add_test(pending_class(name, buildInfo(debug.getinfo(2))))
   end
 end
 
 busted.it = function(name, test_func)
-  assert(type(test_func) == "function", "Expected function, got "..type(test_func))
   if match_tags(name) then
-    local test = {
-      context = current_context,
-      name = name,
-      f = syncwrapper(test_func),
-      started = false,
-      completed = false,
-      status = {
-        description = name,
-        type = 'success',
-        info = buildInfo(debug.getinfo(test_func)),
-      },
-    }
-    test.context:increment_test_count()
-    table.insert(suite.tests, test)
+    current_context:add_test(test_class(name, test_func, buildInfo(debug.getinfo(2))))
   end
 end
 
+--[[
 busted.reset = function()
   current_context = create_context('Root context')
 
@@ -605,14 +586,15 @@ busted.reset = function()
   busted.loop = require('busted.loop.default')
   busted.output = busted.output_reset
 end
+--]]
 
 busted.setloop = function(loop)
   if type(loop) == 'string' then
-     busted.loop = require('busted.loop.'..loop)
+    current_context.loop = require('busted.loop.'..loop)
   else
-     assert(loop.step)
-     busted.loop = loop
-  end
+    assert(loop.step)
+    current_context.loop = loop
+  end  
 end
 
 busted.run_internal_test = function(describe_tests)
@@ -666,59 +648,37 @@ busted.run = function(got_options)
 
   local statuses = {}
   local failures = 0
-  local suites = {}
   local tests = 0
 
-  local function run_suite(s)
-    local old_TEST = _TEST
-    _TEST = busted._VERSION
-    
-    suite = s
-    repeat
-      next_test()
-      busted.loop.step()
-    until #suite.tests == 0 or suite.tests[#suite.tests].completed
-    
-    _TEST = old_TEST
-
-    for _, test in ipairs(suite.tests) do
-      table.insert(statuses, test.status)
-      if test.status.type == 'failure' then
-        failures = failures + 1
-      end
-    end
-  end
-
-  -- there's already a test! probably an error
-  if #suite.tests > 0 then
-    run_suite(suite)
-  end
-
+  -- load files
   for i, filename in ipairs(options.filelist) do
-    busted.reset()
-    load_testfile(filename)
-    tests = tests + #suite.tests
-    suites[i] = suite
+    root_context = busted.describe("Context for '"..filename.."'", 
+      function()
+        load_testfile(filename)
+      end)
   end
 
   if not options.defer_print then
     print(busted.output.header('global', tests))
   end
 
-  for _, s in ipairs(suites) do
-    run_suite(s)
-  end
+  local old_TEST = _TEST
+  _TEST = busted._VERSION
+  root_context:execute()
+  _TEST = old_TEST
+  
 
   --final run time
   ms = busted.gettime() - ms
 
   local status_string = busted.output.formatted_status(statuses, options, ms)
 
+  if tests == 0 then failures = 1 end -- no tests found, so exitcode should be non-zero
+  
   if options.sound then
     play_sound(failures)
   end
 
-  if tests == 0 then failures = 1 end -- no tests found, so exitcode should be non-zero
   return status_string, failures
 end
 

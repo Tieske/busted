@@ -521,12 +521,12 @@ end
 
 busted.describe = function(desc, more)
   local context = context_class(desc)
-  current_context:add_parent(context)
+  current_context:add_context(context)
   
   current_context = context
   
   more()   -- load the context
-  assert(current_context:getfirst(), "Context cannot be empty, at least one test or pending test is required")
+  assert(current_context:firsttest(), "Context cannot be empty, at least one test or pending test is required")
   
   current_context = context.parent
 end
@@ -664,7 +664,9 @@ busted.run = function(got_options)
 
   local old_TEST = _TEST
   _TEST = busted._VERSION
+  print("=====================\n  STARTED EXECUTION  \n=====================")
   root_context:execute()
+  print("=====================\n EXECUTION COMPLETED \n=====================")
   _TEST = old_TEST
   
 

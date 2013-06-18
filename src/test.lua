@@ -21,39 +21,33 @@ end
 
 
 -- execute before_each chain here
-function test:before_execution(before_complete_cb)
+function test:before_execution()
   
-  local function error_check()
-    -- if an error in before_each, then copy it into test and do not exeucte test
-    if self.parent.before_each.status.type == "failure" then
-      self:mark_failed({
-          type = self.parent.before_each.status.type,
-          err = self.parent.before_each.status.err,
-          trace = self.parent.before_each.status.trace,
-        }, true)
-    end
-    return before_complete_cb()
+  self.parent.before_each:execute()
+
+  -- if an error in before_each, then copy it into test and do not exeucte test
+  if self.parent.before_each.status.type == "failure" then
+    self:mark_failed({
+        type = self.parent.before_each.status.type,
+        err = self.parent.before_each.status.err,
+        trace = self.parent.before_each.status.trace,
+      }, true)
   end
-  
-  return self.parent.before_each:execute(error_check)
 end
 
 -- execute after_each chain here
-function test:after_execution(after_complete_cb)
+function test:after_execution()
   
-  local function error_check()
-    -- if an error in after_each, then copy it into test and do not exeucte test
-    if self.parent.after_each.status.type == "failure" then
-      self:mark_failed({
-          type = self.parent.after_each.status.type,
-          err = self.parent.after_each.status.err,
-          trace = self.parent.after_each.status.trace,
-        }, true)
-    end
-    return after_complete_cb()
+  self.parent.after_each:execute()
+  
+  -- if an error in after_each, then copy it into test and do not exeucte test
+  if self.parent.after_each.status.type == "failure" then
+    self:mark_failed({
+        type = self.parent.after_each.status.type,
+        err = self.parent.after_each.status.err,
+        trace = self.parent.after_each.status.trace,
+      }, true)
   end
-  
-  return self.parent.after_each:execute(error_check)
 end
 
 -- flush test results to the outputter

@@ -34,49 +34,19 @@ function context:reset()
 end
 
 -- executes context, starts with setup, then tests and nested describes, end with teardown
-function context:execute(context_complete_cb)
+function context:execute()
   assert(context:class_of(self), "expected self to be a context class")
   
-  local function on_teardown_complete()
-    -- all is done, so call final callback to exit this context
-    self.finished = true
-    return context_complete_cb()
-  end
-  
-  local index = 0
-  local function do_next_step()
-    index = index + 1
-    if index > #self.list then
-      -- list was completed, move on to teardown
-      return self.teardown:execute(on_teardown_complete)
-    end
-    -- execute step
-    local step = self.list[index]
-    if not step.started then
-      -- wasn't started yet, so start now
-      return step:execute(do_next_step)
-    elseif step.finished then
-      -- already marked as started and completed, so move to next
-      return do_next_step()
-    else
-      error("Current step, at index "..index.." of context '"..self.desc.."' was started, but not completed, so execution shouldn't be here")
-    end
-  end
-  
-  -- prepare for execution
   self:reset()
   self.started = true
-  -- start chain by executing setup and start looping until done
-  if not self:firsttest() then
-    -- we have no tests to run, so do not execute anything, just finish
-    return on_teardown_complete()
-  else
-    self.setup:execute(do_next_step)
-    while not self.finished do
-      self.loop.step()
+  if self:firsttest() then  -- only if we have something to run
+    self.setup:execute()
+    for _, step in ipairs(self.list) do
+      if not step.finished then step:execute() end
     end
+    self.teardown:execute()
   end
-
+  self.finished = true
 end
 
 -- mark all tests and sub-context as failed with a specific status

@@ -13,8 +13,9 @@ function setup:_init(context, f)
 end
 
 -- registers a setup error properly
-function setup:after_execution(after_complete_cb)
+function setup:after_execution()
   assert(setup:class_of(self), "expected self to be a setup class")
+  
   if self.status.type == "failure" then
     -- setup failed, set error in first test
     self.parent:firsttest():mark_failed({
@@ -30,5 +31,5 @@ function setup:after_execution(after_complete_cb)
       }) 
   end
   -- call ancestor method
-  return self:base("after_execution", after_complete_cb)
+  self:base("after_execution")
 end

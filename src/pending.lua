@@ -19,6 +19,6 @@ function pending:reset()
 end
 
 -- pending test so execution doesn't do anything
-function pending:_execute(execute_complete_cb)
-  return execute_complete_cb()
+function pending:_execute()
+  -- don't call ancestor
 end

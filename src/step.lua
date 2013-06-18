@@ -60,35 +60,19 @@ function step:reset()
   end
 end
 
-function step:execute(step_complete_cb)
+function step:execute()
   assert(step:class_of(self), "expected self to be a step class")
   
-  local after_complete = function()
-    self.finished = true
-    return step_complete_cb()
-  end
-  
-  local execute_complete = function()
-    return self:after_execution(after_complete)
-  end
-  
-  local before_complete = function()
-    if self.status.type ~= "failure" then
-      return self:_execute(execute_complete)
-    else
-      return execute_complete() -- error occured, so skip execution and go to after handler
-    end
-  end
-  
-  -- prepare for execution
   self:reset()
   self.started = true
-  -- start chain by executing before handler
-  return self:before_execution(before_complete)
+  self:before_execution()
+  if self.status.type ~= "failure" then self:_execute() end
+  self:after_execution()
+  self.finished = true
 end
 
--- should execute the core step and store the result in self.status
-function step:_execute(execute_complete_cb)
+-- should execute the core step, run async and store the result in self.status
+function step:_execute()
   assert(step:class_of(self), "expected self to be a step class")
   
   local done = function()
@@ -105,7 +89,7 @@ function step:_execute(execute_complete_cb)
         self.status.type = 'failure'
         self.status.trace = stack_trace
       end
-      return -- no callbacks here, we're already called on first call to `done`
+      return -- no callbacks here, were already called on first call to `done`
     end
 
     settimeout = nil   -- remove global    
@@ -113,8 +97,6 @@ function step:_execute(execute_complete_cb)
     -- keep done trace for easier error location when called multiple times
     local _, done_trace = moon.rewrite_traceback(nil, debug.traceback("", 2))
     self.done_trace = pretty.write(done_trace)
-
-    return execute_complete_cb()
   end
 
   if self.loop.create_timer then
@@ -126,7 +108,7 @@ function step:_execute(execute_complete_cb)
           self.status.type = 'failure'
           self.status.trace = ''
           self.status.err = 'test timeout elapsed ('..timeout..'s)'
-          return done()
+          return done()  -- this is the original done, not the wrapped one!
         end
       end)
     end
@@ -142,7 +124,6 @@ function step:_execute(execute_complete_cb)
     if settimeout and not self.timer and not self.finished then
       settimeout(busted.defaulttimeout)
     end
-    return          -- return, waiting for `done` to be called
   else
     if type(err) == "table" then
       err = pretty.write(err)
@@ -154,24 +135,29 @@ function step:_execute(execute_complete_cb)
     self.status.type = 'failure'
     self.status.trace = trace
     self.status.err = err
-    return done()   -- an error so we're complete and can call 'done' ourselves
+    done()   -- an error so we're complete and can call 'done' ourselves
+  end
+  
+  -- now wait until it is complete
+  while not self.finished do
+    self.parent.loop.step()
   end
 end
 
 -- will be called before the step is executed
 -- override in descendant class to perform the before_each steps
 -- Any errors should be stored in self.status
-function step:before_execution(before_complete_cb)
+function step:before_execution()
   assert(step:class_of(self), "expected self to be a step class")
-  return before_complete_cb()
+  return 
 end
 
 -- will be called after the step has been executed
 -- override in descendant class to perform the after_each steps
 -- Any errors should be stored in self.status, ONLY if it does not yet contain an error
-function step:after_execution(after_complete_cb)
+function step:after_execution()
   assert(step:class_of(self), "expected self to be a step class")
-  return after_complete_cb()
+  return
 end
 
 -- marks **UNFINISHED** test as failed, existing errors will never be overwritten.

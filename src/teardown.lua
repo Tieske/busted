@@ -13,8 +13,9 @@ function teardown:_init(context, f)
 end
 
 -- registers a teardown error properly
-function teardown:after_execution(after_complete_cb)
+function teardown:after_execution()
   assert(teardown:class_of(self), "expected self to be a teardown class")
+  
   if self.status.type == "failure" then
     -- if teardown failed, set error in last test, but only if it doesn't already have an error
     self.parent:lasttest():mark_failed({
@@ -24,5 +25,5 @@ function teardown:after_execution(after_complete_cb)
       }, true)  -- force overwriting existing success data
   end
   -- call ancestor method
-  return self:base("after_execution", after_complete_cb)
+  self:base("after_execution")
 end

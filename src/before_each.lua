@@ -20,24 +20,19 @@ function before_each:reset()
 end
 
 -- Execute the entire before_each chain
-function before_each:before_execution(before_complete_cb)
-  local function check_error()
-    if self.parent.parent.before_each.status.type == "failure" then
-      self:mark_failed({
-          type = self.parent.parent.after_each.status.type,
-          err = self.parent.parent.after_each.status.err,
-          trace = self.parent.parent.after_each.status.trace,
-        }, true)
-      self.copied_error = true -- indicate we copied this error and the related after_each should not run
-    end
-    return before_complete_cb()
-  end
+function before_each:before_execution()
   
-  if self.parent ~= self.parent:getroot() then
-    -- not in root-context, so must first call parent before_each
-    return self.parent.parent.before_each:execute(check_error)
-  else
-    return before_complete_cb()
+  if self.parent == self.parent:getroot() then return end
+
+  -- not in root-context, so must first call parent before_each
+  self.parent.parent.before_each:execute() 
+  if self.parent.parent.before_each.status.type == "failure" then
+    self:mark_failed({
+        type = self.parent.parent.after_each.status.type,
+        err = self.parent.parent.after_each.status.err,
+        trace = self.parent.parent.after_each.status.trace,
+      }, true)
+    self.copied_error = true -- indicate we copied this error and our related after_each should not run
   end
 end
 

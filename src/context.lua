@@ -21,7 +21,7 @@ function context:_init(parent_context, desc)
   self.list = {}                                -- list with test and context objects, in execution order
   self.description = desc                       -- textual description
   self.count = 0                                -- number of tests in context
-  self.cumulative_count = 0                     -- number of tests, including nested contexts
+  self.output = nil                             -- the outputter to use
   self:reset()
   if parent_context then parent_context:add_context(self) end
 end
@@ -30,6 +30,9 @@ end
 function context:reset()
   self.started = false                    -- has execution started
   self.finished = false                   -- has execution been completed
+  self.failure = 0                        -- failures encountered
+  self.pending = 0                        -- pendings encountered
+  self.success = 0                        -- successes encountered
   self.loop = (self.parent or {}).loop or require('busted.loop.default')  -- contains the loop table to be used
 end
 
@@ -39,14 +42,31 @@ function context:execute()
   
   self:reset()
   self.started = true
+  local last
   if self:firsttest() then  -- only if we have something to run
     self.setup:execute()
     for _, step in ipairs(self.list) do
+      if last then  
+        -- flush output of this one as it won't change anymore
+        if context:class_of(last) then
+if last:lasttest() == nil then
+  print("Lasttest is nil:", last.description)
+end
+          last:lasttest():flush_results()
+        else
+          last:flush_results() 
+        end
+      end 
       if not step.finished then step:execute() end
+      last = step
     end
     self.teardown:execute()
   end
   self.finished = true
+  if self.parent == nil then
+    -- I'm root context, so must flush last results
+    self:lasttest():flush_results()
+  end
 end
 
 -- mark all tests and sub-context as failed with a specific status
@@ -67,11 +87,6 @@ function context:add_test(test_obj)
   table.insert(self.list, test_obj)
   self.count = self.count + 1
   test_obj.parent = self
-  local p = self
-  while p do
-    p.cumulative_count = p.cumulative_count + 1
-    p = p.parent
-  end
 end
 
 -- adds a sub context to this context
@@ -80,12 +95,23 @@ function context:add_context(context_obj)
   assert(context:class_of(context_obj), "Can only add context classes")
   table.insert(self.list, context_obj)
   context_obj.parent = self
-  local p = self
-  while p do
-    p.cumulative_count = p.cumulative_count + context_obj.cumulative_count
-    p = p.parent
-  end
 end
+
+-- removes a sub context from this context
+function context:delete()
+  assert(context:class_of(self), "expected self to be a context class")
+  assert(self.parent, "Cannot delete a context without parent (root-context?)")
+  local index
+  for i, c in ipairs(self.parent.list) do
+    if c == self then
+      index = i 
+      break
+    end
+  end
+  table.remove(self.parent.list, index)
+  self.parent = nil
+end
+
 
 -- returns the root-context of the tree this one lives in
 function context:getroot()
@@ -117,6 +143,7 @@ end
 
 -- returns the currently executing step (can be setup, teardown, before_each, test, pending, etc.)
 function context:currentstep()
+  assert(context:class_of(self), "expected self to be a context class")
   if not self.started or self.finished then return nil end
   if self.setup.started and not self.setup.finished then return self.setup end
   if self.before_each.started and not self.before_each.finished then return self.before_each end
@@ -130,4 +157,55 @@ function context:currentstep()
   end
 end
 
-return context
+-- returns the outputter, cascades up to the root-context to get it
+function context:getoutput()
+  assert(context:class_of(self), "expected self to be a context class")
+  if (not self.output) and self.parent then
+    self.output = self.parent:getoutput()
+  end
+  return self.output
+end
+
+-- adds test results to the context
+local types = { success = 1, pending = 2, failure = 3 }
+function context:addresult(rtype)
+  assert(context:class_of(self), "expected self to be a context class")
+  assert(types[rtype], "expected result to be any one 'success', 'pending' or 'failure'")
+  self[rtype] = self[rtype] + 1
+  return context
+end
+
+-- returns cumulative counts, in order:
+-- tests, successes, pendings, failures
+-- NOTE: success, pending, failure, counts are only of the tests that already flushed their results!
+-- hence:  tests ~= succes + pending + failure (unless all are finished)
+function context:getcount()
+  assert(context:class_of(self), "expected self to be a context class")
+  local c, s, p, f = self.count, self.success, self.pending, self.failure
+  for _, subcontext in ipairs(self.list) do
+    if context:class_of(subcontext) then
+      local t = { subcontext:getcount() }
+      c = c + t[1]
+      s = s + t[2]
+      p = p + t[3]
+      f = f + t[4]
+    end
+  end
+  return c, s, p, f
+end
+
+-- gets a list of all statusses of all underlying tests
+-- @param t: the table to add them to, or nil to create a new table
+function context:getstatuses(t)
+  assert(context:class_of(self), "expected self to be a context class")
+  t = t or {}
+  for _, elem in ipairs(self.list) do
+    if context:class_of(elem) then
+      elem:getstatuses(t)
+    else
+      elem.status.description = elem.description  -- TODO: double??? pass context to outputter??
+      table.insert(t, elem.status)
+    end
+  end
+  return t
+end

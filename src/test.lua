@@ -1,5 +1,6 @@
 local step_class        = require('busted.step')
 local class             = require('pl.class')
+local busted            = require('busted')
 
 -- module/object table
 local test = class(step_class)
@@ -56,8 +57,10 @@ end
 -- the context object should call flush when the test output can no longer
 -- be altered by the teardown chain procedure
 function test:flush_results()
-  if not self.flushed then
-    -- TODO: actually write output
+  local o = self.parent:getoutput()
+  if (not self.flushed) and o then
+    o.currently_executing(self.status, busted.options)
+    self.parent:addresult(self.status.type)
+    self.flushed = true
   end
-  self.flushed = true
 end

@@ -3,7 +3,6 @@ local path = require('pl.path')
 local dir = require('pl.dir')
 local tablex = require('pl.tablex')
 local pretty = require('pl.pretty')
-local wrap_done = require('busted.done').new
 
 -- exported module table, pre-store in package.loaded to prevent 'require loops'
 local busted = {}
@@ -181,7 +180,7 @@ local load_testfile = function(filename)
       else
         chunk = function()
           busted.describe("Not running tests under Terra", function()
-            pending("File not tested because tests are not being run with 'terra'; "..tostring(filename))
+            busted.pending("File not tested because tests are not being run with 'terra'; "..tostring(filename))
           end)
         end
       end
@@ -271,7 +270,7 @@ busted.async = function(f)
     if result[1] then
       return unpack(result, 2)
     else
-      local err = result[2]
+      local err, stack_trace = result[2]
       if type(err) == "table" then
         err = pretty.write(err)
       end
@@ -534,6 +533,10 @@ busted.describe = function(desc, more)
   more()   -- load the context contents
   
   current_context = context.parent
+  
+  if not context:firsttest() then
+    context:delete()  -- there is nothing to test, so delete it
+  end
 end
 
 busted.setup = function(setup_func)
@@ -642,43 +645,43 @@ end
 -- test runner
 busted.run = function(got_options)
   options = got_options
+  busted.options = options
 
   language(options.lang)
   busted.output = getoutputter(options.output, options.fpath, busted.defaultoutput)
+  root_context.output = busted.output
   busted.output_reset = busted.output  -- store in case we need a reset
   -- if no filelist given, get them
   options.filelist = options.filelist or gettestfiles(options.root_file, options.pattern)
 
   local ms = busted.gettime()
-
-  local statuses = {}
-  local failures = 0
-  local tests = 0
+  local tests, successes, pending, failures = 0,0,0,0
 
   -- load files, each inside its own context
-  for i, filename in ipairs(options.filelist) do
+  for _, filename in ipairs(options.filelist) do
     busted.describe("Context for '"..filename.."'", 
       function()
         load_testfile(filename)
       end)
   end
 
+  tests = root_context:getcount()
+  
   if not options.defer_print then
     print(busted.output.header('global', tests))
   end
 
   local old_TEST = _TEST
   _TEST = busted._VERSION
-  print("=====================\n  STARTED EXECUTION  \n=====================")
   root_context:execute()
-  print("=====================\n EXECUTION COMPLETED \n=====================")
   _TEST = old_TEST
   
+  tests, successes, pending, failures = root_context:getcount()
 
   --final run time
   ms = busted.gettime() - ms
 
-  local status_string = busted.output.formatted_status(statuses, options, ms)
+  local status_string = busted.output.formatted_status(root_context:getstatuses(), options, ms)
 
   if tests == 0 then failures = 1 end -- no tests found, so exitcode should be non-zero
   

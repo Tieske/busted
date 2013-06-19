@@ -11,14 +11,8 @@ function pending:_init(context, desc, info)
   self.type = "pending"
 end
 
--- added 'flushed' property
-function pending:reset()
-  assert(pending:class_of(self), "expected self to be a pending class")
-  self:base("reset")          -- call ancestor
-  self.status.type = 'pending'
-end
-
 -- pending test so execution doesn't do anything
 function pending:_execute()
   -- don't call ancestor
+  self.status.type = "pending"
 end

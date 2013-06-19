@@ -36,7 +36,7 @@ function step:_init(context, desc, f, info)
   self.f = f                              -- function containing the test step
   self.description = desc                 -- textual description
   self.type = "step"                      -- either; step (only as baseclass, not used), setup, teardown, test, before/after_each
-  self.status = { buildInfo = info }
+  self.status = { info = info }
   self:reset()
 end
 
@@ -49,7 +49,7 @@ function step:reset()
     type = 'success',                     -- result, either 'success', 'failure' or 'pending'
     err = nil,                            -- error message in case of failure
     trace = nil,                          -- stacktrace in case of a failure
-    buildInfo = self.status.buildInfo,    -- debug info containing test definition location etc. (do NOT reset!)
+    info = self.status.info,              -- debug info containing test definition location etc. (do NOT reset!)
   }
   self.done_trace = nil                   -- first stacktrace of 'done' callback to track multiple calls
   self.step_is_async = nil                -- detection of step being sync/async

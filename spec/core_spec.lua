@@ -37,12 +37,12 @@ describe("testing global _TEST", function()
 
 end)
 
-describe("Test Case", function()
+describe("Test Case 1", function()
   local test_val = true
   assert(test_val)
 end)
 
-describe("Test case", function()
+describe("Test case 2", function()
   local test_val = false
   it("changes test_val to true", function()
     test_val = true

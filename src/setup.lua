@@ -21,11 +21,11 @@ function setup:after_execution()
     self.parent:firsttest():mark_failed({
         type = self.status.type,
         trace = self.status.trace,
-        err = "Test not executed, the 'setup' method of context '"..self.parent.description.."' failed: "..tostring(self.teardown.status.err)
+        err = "Test not executed, the 'setup' method of context '"..self.parent.description.."' failed: "..tostring(self.parent.teardown.status.err)
       }, true) -- force overwriting existing success status
     -- update all other tests underneith as well
     self.parent:mark_failed({
-        type = self.setup.status.type,
+        type = self.parent.setup.status.type,
         trace = "",
         err = "Test not executed, due to failing 'setup' chain",
       }) 

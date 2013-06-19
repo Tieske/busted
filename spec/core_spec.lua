@@ -258,20 +258,6 @@ teardown A
 
 end)
 
-it("Malformated Lua code gets reported correctly", function()
-  local filename = ".malformed_test.lua"
-  local f = io.open(filename,"w")
-  f:write("end)") -- write some non-sense which will cause a parse error
-  f:close()
-  local statuses = busted.run_internal_test(filename)
-  assert.is_equal(#statuses,1)
-  local status = statuses[1]
-  assert.is_equal(status.type, "failure")
-  assert.is_equal(status.description, "Failed executing testfile; "..filename)
-  assert.is_truthy(status.err:match("expected"))
-  os.remove(filename)
-end)
-
 describe("testing the done callback with tokens", function()
   
   it("Tests done call back ordered", function(done)
@@ -312,7 +298,7 @@ describe("testing the done callback with tokens", function()
   
 end)
 
---[[  TODO: uncomment this failing test and fix it
+---[[  TODO: uncomment this failing test and fix it
 describe("testing done callbacks being provided", function()
   setup(function(done)
     assert.is_table(done)

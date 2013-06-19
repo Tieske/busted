@@ -21,7 +21,7 @@ function teardown:after_execution()
     self.parent:lasttest():mark_failed({
         type = self.status.type,
         trace = self.status.trace,
-        err = "Test succeeded, but the 'teardown' method of context '" .. self.parent.description.."' failed: " .. tostring(self.teardown.status.err)
+        err = "Test succeeded, but the 'teardown' method of context '" .. self.parent.description.."' failed: " .. tostring(self.parent.teardown.status.err)
       }, true)  -- force overwriting existing success data
   end
   -- call ancestor method

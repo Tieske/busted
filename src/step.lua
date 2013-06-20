@@ -67,11 +67,7 @@ function step:execute()
   self:reset()
   self.started = true
   self:before_execution()
-assert(self, "self is not ok")  
-assert(self.status, "self.status is not ok")  
-assert(self.status.type, "self.status.type is not ok")  
-
-  if self.status.type ~= "failure" then self:_execute() end
+  if not self.finished then self:_execute() end
   self:after_execution()
   self.finished = true
 end

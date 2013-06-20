@@ -45,20 +45,19 @@ function context:execute()
   local last
   if self:firsttest() then  -- only if we have something to run
     self.setup:execute()
-    for _, step in ipairs(self.list) do
-      if last then  
-        -- flush output of this one as it won't change anymore
-        if context:class_of(last) then
-if last:lasttest() == nil then
-  print("Lasttest is nil:", last.description)
-end
-          last:lasttest():flush_results()
-        else
-          last:flush_results() 
-        end
-      end 
-      if not step.finished then step:execute() end
-      last = step
+    if not self.finished then -- if setup fails, we're marked as finished
+      for _, step in ipairs(self.list) do
+        if last then  
+          -- flush output of this one as it won't change anymore
+          if context:class_of(last) then
+            last:lasttest():flush_results()
+          else
+            last:flush_results() 
+          end
+        end 
+        if not step.finished then step:execute() end
+        last = step
+      end
     end
     self.teardown:execute()
   end
@@ -77,6 +76,8 @@ function context:mark_failed(status)
   for _, step in ipairs(self.list) do 
     step:mark_failed(status)
   end
+  self.started = true
+  self.finished = true
 end
 
 

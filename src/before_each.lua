@@ -37,7 +37,7 @@ function before_each:before_execution()
 end
 
 function before_each:after_execution()
-  if self.status == "failure" and (not self.copied_error) then
+  if self.status.type == "failure" and (not self.copied_error) then
     self.status.err = "The 'before_each' method of context '"..self.parent.description.."' failed: "..tostring(self.status.err)
   end
 end

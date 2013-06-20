@@ -12,12 +12,18 @@ function after_each:_init(context, f)
   context.after_each = self
 end
 
+-- added 'copied_error' property
+function after_each:reset()
+  assert(after_each:class_of(self), "expected self to be a after_each class")
+  self:base("reset")          -- call ancestor
+  self.copied_error = nil     -- if set, it copied the error from an after_each downstream (this one succeeded)
+end
 
 function after_each:before_execution()
   if self.parent.before_each.copied_error then
     -- companion before_each did not run, so neither should we
-    self.status.started = true
-    self.status.finished = true
+    self.started = true
+    self.finished = true
   end
 end
 
@@ -35,6 +41,11 @@ function after_each:after_execution()
         err = self.parent.parent.after_each.status.err,
         trace = self.parent.parent.after_each.status.trace,
       }, true)
+    self.copied_error = true
+  end
+  
+  if self.status.type == "failure" and (not self.copied_error) then
+    self.status.err = "The 'after_each' method of context '"..self.parent.description.."' failed: "..tostring(self.status.err)
   end
   
 end

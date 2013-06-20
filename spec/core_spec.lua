@@ -351,20 +351,21 @@ end)
 
 describe("Check errors in setup/teardown/before_each/after_each to be reported correctly", function()
   local fail
+  local ran
   local testsetup = function()
     describe("Internal test", function()
-      setup(function()       assert(not fail:find("setup1"),       fail) end)
-      before_each(function() assert(not fail:find("before_each1"), fail) end)
-      after_each(function()  assert(not fail:find("after_each1"),  fail) end)
-      teardown(function()    assert(not fail:find("teardown1"),    fail) end)
+      ran = ""
+      setup(function()       ran=ran..", setup1";       assert(not fail:find("setup1"),       fail) end)
+      before_each(function() ran=ran..", before_each1"; assert(not fail:find("before_each1"), fail) end)
+      after_each(function()  ran=ran..", after_each1";  assert(not fail:find("after_each1"),  fail) end)
+      teardown(function()    ran=ran..", teardown1";    assert(not fail:find("teardown1"),    fail) end)
       describe("nested", function()
-        setup(function()       assert(not fail:find("setup2"),       fail) end)
-        before_each(function() assert(not fail:find("before_each2"), fail) end)
-        after_each(function()  assert(not fail:find("after_each2"),  fail) end)
-        teardown(function()    assert(not fail:find("teardown2"),    fail) end)
-        it("does the test", function()
-          assert(not fail:find("test1"), fail)
-        end)
+        setup(function()       ran=ran..", setup2";       assert(not fail:find("setup2"),       fail) end)
+        before_each(function() ran=ran..", before_each2"; assert(not fail:find("before_each2"), fail) end)
+        after_each(function()  ran=ran..", after_each2";  assert(not fail:find("after_each2"),  fail) end)
+        teardown(function()    ran=ran..", teardown2";    assert(not fail:find("teardown2"),    fail) end)
+        it("does the test", 
+          function()           ran=ran..", test1"         assert(not fail:find("test1"),        fail) end)
       end)
     end)
   end
@@ -376,7 +377,10 @@ describe("Check errors in setup/teardown/before_each/after_each to be reported c
     result = result.list[1]  --> "nested" context
     result = result.list[1]  --> "does the test" test
     if not lookfor then return result  end -- return the test object
-    
+    local out = result.status.err or ""
+    if not out:find(lookfor,1,true) then
+      error("\nThe expected string;\n    "..[["]]..lookfor..[["]].."\nwas not found in error message\n    "..[["]]..out..[["]])
+    end
   end
 
   it("tests this test to pass without errors", function()
@@ -393,18 +397,106 @@ describe("Check errors in setup/teardown/before_each/after_each to be reported c
     assert.are_equal("success", test.status.type)  -- the test
   end)
 
-  it("tests setup failure being reported properly", function()
+  it("tests setup1 failure being reported properly", function()
     fail = "setup1"
-    local lookfor
-    result = runtest().status
-    
-    print("\n========TEST=================")
-    for k,v in pairs(runtest().status) do
-      print(k,v)
-    end
-    print("=========================")
+    runtest("the 'setup' method of context 'Internal test' failed")
   end)
 
+  it("tests setup2 failure being reported properly", function()
+    fail = "setup2"
+    runtest("the 'setup' method of context 'nested' failed")
+  end)
+
+  it("tests before_each1 failure being reported properly", function()
+    fail = "before_each1"
+    runtest("The 'before_each' method of context 'Internal test' failed")
+  end)
+
+  it("tests before_each2 failure being reported properly", function()
+    fail = "before_each2"
+    runtest("The 'before_each' method of context 'nested' failed")
+  end)  
   
+  it("tests test1 failure being reported properly", function()
+    fail = "test1"
+    runtest("test1")
+  end)
+
+  it("tests after_each1 failure being reported properly", function()
+    fail = "after_each1"
+    runtest("The 'after_each' method of context 'Internal test' failed")
+  end)
+
+  it("tests after_each2 failure being reported properly", function()
+    fail = "after_each2"
+    runtest("The 'after_each' method of context 'nested' failed")
+  end)  
+  
+  it("tests teardown1 failure being reported properly", function()
+    fail = "teardown1"
+    runtest("the 'teardown' method of context 'Internal test' failed")
+  end)
+
+  it("tests teardown2 failure being reported properly", function()
+    fail = "teardown2"
+    runtest("the 'teardown' method of context 'nested' failed")
+  end)
+  
+  it("tests before_each1 + test1 failure being reported properly", function()
+    fail = "before_each1, test1"
+    runtest("The 'before_each' method of context 'Internal test' failed")
+    assert(not ran:find("before_each2",1,true), "'before_each2' should not have run")
+    assert(not ran:find("test1",       1,true), "'test1' should not have run")
+    assert(not ran:find("after_each2", 1,true), "'after_each2' should not have run")
+    assert(    ran:find("after_each1", 1,true), "'after_each1' should have run")
+  end)
+  
+  it("tests setup1 + test1 failure being reported properly", function()
+    fail = "setup1, test1"
+    runtest("the 'setup' method of context 'Internal test' failed")
+    assert(not ran:find("before_each1",1,true), "'before_each1' should not have run")
+    assert(not ran:find("setup2",      1,true), "'setup2' should not have run")
+    assert(not ran:find("before_each2",1,true), "'before_each2' should not have run")
+    assert(not ran:find("test1",       1,true), "'test1' should not have run")
+    assert(not ran:find("after_each2", 1,true), "'after_each2' should not have run")
+    assert(not ran:find("teardown2",   1,true), "'teardown2' should not have run")
+    assert(not ran:find("after_each1", 1,true), "'after_each1' should not have run")
+    assert(    ran:find("teardown1",   1,true), "'teardown1' should have run")
+  end)
+  
+  it("tests setup2 + before_each1 + test1 failure being reported properly", function()
+    fail = "setup2, before_each1, test1"
+    runtest("the 'setup' method of context 'nested' failed")
+    assert(not ran:find("before_each1",1,true), "'before_each1' should not have run")
+    assert(    ran:find("setup1",      1,true), "'setup1' should have run")
+    assert(    ran:find("setup2",      1,true), "'setup2' should have run")
+    assert(not ran:find("before_each2",1,true), "'before_each2' should not have run")
+    assert(not ran:find("test1",       1,true), "'test1' should not have run")
+    assert(not ran:find("after_each2", 1,true), "'after_each2' should not have run")
+    assert(    ran:find("teardown2",   1,true), "'teardown2' should have run")
+    assert(not ran:find("after_each1", 1,true), "'after_each1' should not have run")
+    assert(    ran:find("teardown1",   1,true), "'teardown1' should have run")
+  end)
+  
+  it("tests after_each1 + test1 failure being reported properly", function()
+    fail = "after_each1, test1"
+    runtest("the 'setup' method of context 'nested' failed")
+    assert(    ran:find("before_each1",1,true), "'before_each1' should have run")
+    assert(    ran:find("setup1",      1,true), "'setup1' should have run")
+    assert(    ran:find("setup2",      1,true), "'setup2' should have run")
+    assert(    ran:find("before_each2",1,true), "'before_each2' should have run")
+    assert(    ran:find("test1",       1,true), "'test1' should have run")
+    assert(    ran:find("after_each2", 1,true), "'after_each2' should have run")
+    assert(    ran:find("teardown2",   1,true), "'teardown2' should have run")
+    assert(    ran:find("after_each1", 1,true), "'after_each1' should have run")
+    assert(    ran:find("teardown1",   1,true), "'teardown1' should have run")
+  end)
+  
+  --[[
+  combies
+  after_each + test
+  teardown + test
+  after_each + teardown + test
+  --]]
 end)
 

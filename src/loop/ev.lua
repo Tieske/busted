@@ -1,4 +1,5 @@
 local ev = require'ev'
+local default = require'busted.loop.default'
 
 local loop = {}
 
@@ -19,6 +20,8 @@ loop.create_timer = function(secs,on_timeout)
     end
   }
 end
+
+loop.pcall = default.pcall
 
 loop.step = function()
   ev.Loop.default:loop()

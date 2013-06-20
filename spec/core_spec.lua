@@ -298,7 +298,6 @@ describe("testing the done callback with tokens", function()
   
 end)
 
----[[  TODO: uncomment this failing test and fix it
 describe("testing done callbacks being provided", function()
   setup(function(done)
     assert.is_table(done)
@@ -349,4 +348,63 @@ describe("testing done callbacks being provided for async tests", function()
     assert.is_function(done.wait)
   end)
 end)
---]]
+
+describe("Check errors in setup/teardown/before_each/after_each to be reported correctly", function()
+  local fail
+  local testsetup = function()
+    describe("Internal test", function()
+      setup(function()       assert(not fail:find("setup1"),       fail) end)
+      before_each(function() assert(not fail:find("before_each1"), fail) end)
+      after_each(function()  assert(not fail:find("after_each1"),  fail) end)
+      teardown(function()    assert(not fail:find("teardown1"),    fail) end)
+      describe("nested", function()
+        setup(function()       assert(not fail:find("setup2"),       fail) end)
+        before_each(function() assert(not fail:find("before_each2"), fail) end)
+        after_each(function()  assert(not fail:find("after_each2"),  fail) end)
+        teardown(function()    assert(not fail:find("teardown2"),    fail) end)
+        it("does the test", function()
+          assert(not fail:find("test1"), fail)
+        end)
+      end)
+    end)
+  end
+  
+  local runtest = function(lookfor)
+    local result
+    result = busted.run_internal_test(testsetup)  --> "Root-context" context
+    result = result.list[1]  --> "Internal test" context
+    result = result.list[1]  --> "nested" context
+    result = result.list[1]  --> "does the test" test
+    if not lookfor then return result  end -- return the test object
+    
+  end
+
+  it("tests this test to pass without errors", function()
+    fail = ""
+    local test = runtest()
+    assert.are_equal("success", test.parent.parent.setup.status.type)  -- setup1
+    assert.are_equal("success", test.parent.parent.before_each.status.type)  -- before_each1
+    assert.are_equal("success", test.parent.setup.status.type) -- setup2
+    assert.are_equal("success", test.parent.before_each.status.type)  -- before_each2
+    assert.are_equal("success", test.parent.parent.teardown.status.type)  -- teardown1
+    assert.are_equal("success", test.parent.parent.after_each.status.type)  -- after_each1
+    assert.are_equal("success", test.parent.teardown.status.type) -- teardown2
+    assert.are_equal("success", test.parent.after_each.status.type)  -- after_each2
+    assert.are_equal("success", test.status.type)  -- the test
+  end)
+
+  it("tests setup failure being reported properly", function()
+    fail = "setup1"
+    local lookfor
+    result = runtest().status
+    
+    print("\n========TEST=================")
+    for k,v in pairs(runtest().status) do
+      print(k,v)
+    end
+    print("=========================")
+  end)
+
+  
+end)
+

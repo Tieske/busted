@@ -20,10 +20,11 @@ So if you do not provide a `create_timer` method and a test neither fails nor su
 The default loop has a timer implementation that can be reused for coroutine based schedulers. See the `busted.loop.copas` module for an example. If you do a event framework similar as Lua-ev, then you should use timers as provided by that framework. In that case see the `busted.loop.ev` module for an example.
 
 ##step()
-This method should execute a single step in the async loop for the framework it supports. In between executing steps, busted will check for test results and commence to the next test when required.
+This (required) method should execute a single step in the async loop for the framework it supports. In between executing steps, busted will check for test results and commence to the next test when required.
 
 ##pcall()
-If using Lua 5.1 with coroutines, then the `coxpcall` module may be required to safely execute `pcall()` statements with coroutines. If not set, then the global pcall will be used.
+This should be a modified pcall (required). It should take the same arguments, but should have an additional return value upon failure; the stack trace. So on failure it should return; `false, "error object/message", stacktrace`. See `busted.loop.default` for an implementation using the standard lua `xpcall`.
+If using Lua 5.1 with coroutines, then the `coxpcall` module may be required to safely execute `xpcall()` statements with coroutines.
 
 #Using a loop
 To use your custom loop you can use the `setloop` method. `setloop` takes 1 parameters which is either a module name (eg. `setloop('copas')` to load the `busted.loop.copas` module) or a table providing the loop methods.

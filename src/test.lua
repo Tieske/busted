@@ -26,11 +26,11 @@ function test:before_execution()
   
   self.parent.before_each:execute()
 
-  -- if an error in before_each, then copy it into test and do not exeucte test
+  -- if an error in before_each, then copy it into test and do not execute test
   if self.parent.before_each.status.type == "failure" then
     self:mark_failed({
         type = self.parent.before_each.status.type,
-        err = self.parent.before_each.status.err,
+        err = "Test not executed. "..self.parent.before_each.status.err,
         trace = self.parent.before_each.status.trace,
       }, true)
   end
@@ -41,11 +41,11 @@ function test:after_execution()
   
   self.parent.after_each:execute()
   
-  -- if an error in after_each, then copy it into test and do not exeucte test
-  if self.parent.after_each.status.type == "failure" then
+  -- if an error in after_each, then copy it into test and do not execute test
+  if self.parent.after_each.status.type == "failure" and self.status.type ~= "failure" then
     self:mark_failed({
         type = self.parent.after_each.status.type,
-        err = self.parent.after_each.status.err,
+        err = "Test successful. "..self.parent.after_each.status.err,
         trace = self.parent.after_each.status.trace,
       }, true)
   end

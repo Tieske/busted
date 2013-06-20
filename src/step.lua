@@ -58,6 +58,7 @@ function step:reset()
     self.timer:stop()
     self.timer = nil
   end
+  self.done = nil                         -- the 'done' callback for this step when executing
 end
 
 function step:execute()
@@ -66,6 +67,10 @@ function step:execute()
   self:reset()
   self.started = true
   self:before_execution()
+assert(self, "self is not ok")  
+assert(self.status, "self.status is not ok")  
+assert(self.status.type, "self.status.type is not ok")  
+
   if self.status.type ~= "failure" then self:_execute() end
   self:after_execution()
   self.finished = true
@@ -75,7 +80,7 @@ end
 function step:_execute()
   assert(step:class_of(self), "expected self to be a step class")
   
-  local done = function()
+  function self.done()  -- no method; takes 'self' as an upvalue!
     if self.timer then
       self.timer:stop()
       self.timer = nil
@@ -92,11 +97,11 @@ function step:_execute()
       return -- no callbacks here, were already called on first call to `done`
     end
 
-    settimeout = nil   -- remove global    
-    self.finished = true
     -- keep done trace for easier error location when called multiple times
     local _, done_trace = moon.rewrite_traceback(nil, debug.traceback("", 2))
     self.done_trace = pretty.write(done_trace)
+    settimeout = nil   -- remove global    
+    self.finished = true
   end
 
   if self.loop.create_timer then
@@ -108,7 +113,7 @@ function step:_execute()
           self.status.type = 'failure'
           self.status.trace = ''
           self.status.err = 'test timeout elapsed ('..timeout..'s)'
-          return done()  -- this is the original done, not the wrapped one!
+          return self.done()  -- this is the original done, not the wrapped one!
         end
       end)
     end
@@ -117,7 +122,7 @@ function step:_execute()
     settimeout = nil
   end
 
-  local ok, err = (self.loop.pcall or pcall)(syncwrapper(self, self.f), wrap_done(done)) 
+  local ok, err, trace = self.loop.pcall(syncwrapper(self, self.f), wrap_done(self.done)) 
   
   if ok then
     -- test returned, set default timer if one hasn't been set already
@@ -129,13 +134,12 @@ function step:_execute()
       err = pretty.write(err)
     end
 
-    local trace = debug.traceback("", 2)
     err, trace = moon.rewrite_traceback(err, trace)
 
     self.status.type = 'failure'
     self.status.trace = trace
     self.status.err = err
-    done()   -- an error so we're complete and can call 'done' ourselves
+    self.done()   -- an error so we're complete and can call 'done' ourselves
   end
   
   -- now wait until it is complete

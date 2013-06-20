@@ -265,7 +265,7 @@ busted.async = function(f)
   end
 
   local safef = function(...)
-    local result = { (active_step.parent.loop.pcall or pcall)(f, ...) }
+    local result = { active_step.parent.loop.pcall(f, ...) }
 
     if result[1] then
       return unpack(result, 2)
@@ -280,7 +280,7 @@ busted.async = function(f)
       active_step.status.type = 'failure'
       active_step.status.trace = stack_trace
       active_step.status.err = err
-      test.done()
+      active_step.done()
     end
   end
 
@@ -598,48 +598,37 @@ end
 
 busted.setloop = function(loop)
   if type(loop) == 'string' then
-    current_context.loop = require('busted.loop.'..loop)
-  else
-    assert(loop.step)
-    current_context.loop = loop
-  end  
+    loop = require('busted.loop.'..loop)
+  end
+  assert(type(loop) == "table", "Expected table got "..type(loop))
+  assert(loop.step, "missing required loop method; 'step'")
+  assert(loop.pcall, "missing required loop method; 'pcall'")
+  current_context.loop = loop
 end
 
+-- Takes 1 parameter either:
+--   string  : filename of test to load
+--   function: function that runs a describe block
+-- Returns: the context tree
 busted.run_internal_test = function(describe_tests)
-  local suite_bak = suite
-  local output_bak = busted.output
-  local current_context_bak = current_context
-  busted.reset()
+  local old_root, old_current = root_context, current_context
+  
+  root_context = context_class(nil, "Root-context")
+  current_context = root_context
+  root_context.output = require 'busted.output.stub'()
+  local result = root_context
+  
+  pcall(function()
+    if type(describe_tests) == 'function' then
+       describe_tests()
+    else
+       load_testfile(describe_tests)
+    end
+    root_context:execute()
+  end)
 
-  busted.output = require 'busted.output.stub'()
-  suite = {
-    tests = {},
-    test_index = 1,
-  }
-  busted.loop = require('busted.loop.default')
-
-  if type(describe_tests) == 'function' then
-     describe_tests()
-  else
-     load_testfile(describe_tests)
-  end
-
-  repeat
-    next_test()
-    busted.loop.step()
-  until #suite.tests == 0 or suite.tests[#suite.tests].completed
-
-  local statuses = {}
-
-  for _, test in ipairs(suite.tests) do
-    table.insert(statuses, test.status)
-  end
-
-  suite = suite_bak
-  current_context = current_context_bak
-  busted.output = output_bak
-
-  return statuses
+  root_context, current_context = old_root, old_current
+  return result 
 end
 
 -- test runner

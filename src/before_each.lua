@@ -28,11 +28,16 @@ function before_each:before_execution()
   self.parent.parent.before_each:execute() 
   if self.parent.parent.before_each.status.type == "failure" then
     self:mark_failed({
-        type = self.parent.parent.after_each.status.type,
-        err = self.parent.parent.after_each.status.err,
-        trace = self.parent.parent.after_each.status.trace,
+        type = self.parent.parent.before_each.status.type,
+        err = self.parent.parent.before_each.status.err,
+        trace = self.parent.parent.before_each.status.trace,
       }, true)
     self.copied_error = true -- indicate we copied this error and our related after_each should not run
   end
 end
 
+function before_each:after_execution()
+  if self.status == "failure" and (not self.copied_error) then
+    self.status.err = "The 'before_each' method of context '"..self.parent.description.."' failed: "..tostring(self.status.err)
+  end
+end

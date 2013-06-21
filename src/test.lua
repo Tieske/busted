@@ -59,6 +59,7 @@ end
 function test:flush_results()
   local o = self.parent:getoutput()
   if (not self.flushed) and o then
+    self.status.description = self.description  -- TODO: double??? pass context to outputter??
     o.currently_executing(self.status, busted.options)
     self.parent:addresult(self.status.type)
     self.flushed = true

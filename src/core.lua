@@ -68,19 +68,22 @@ local internal_error = function(description, err)
     tag = " #"..options.tags[1]
   end
   
-  -- if no error context yet, create it now
   if not err_context then
+    -- no error context yet, create it now
     local c = current_context
     current_context = root_context
-    busted.describe("Busted process errors occured" .. tag, function() end)
+    busted.describe("Busted process errors occured" .. tag, function()
+      busted.it(description .. tag, function() error(err) end)
+    end)
     err_context = current_context.list[#current_context.list]
     current_context = c
+  else
+    -- load error into the error context
+    local c = current_context
+    current_context = err_context
+    busted.it(description .. tag, function() error(err) end)
+    current_context = c
   end
-  -- load error into the error context
-  local c = current_context
-  current_context = err_context
-  busted.it(description .. tag, function() error(err) end)
-  current_context = c
 end
 
 -- returns current time in seconds

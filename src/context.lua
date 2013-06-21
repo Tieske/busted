@@ -204,7 +204,6 @@ function context:getstatuses(t)
     if context:class_of(elem) then
       elem:getstatuses(t)
     else
-      elem.status.description = elem.description  -- TODO: double??? pass context to outputter??
       table.insert(t, elem.status)
     end
   end

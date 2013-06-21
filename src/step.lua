@@ -165,7 +165,7 @@ end
 -- @force if truthy then any existing success of a **FINISHED** value will be overwritten by the status
 function step:mark_failed(status, force)
   assert(step:class_of(self), "expected self to be a step class")
-  if (not self.finished) or force then
+  if (not self.finished) or (self.status.type ~= "failure" and force) then
     self.started = true
     self.finished = true
     self.status.type = status.type

@@ -352,20 +352,26 @@ end)
 describe("Check errors in setup/teardown/before_each/after_each to be reported correctly", function()
   local fail
   local ran
+  
+  local function docheck(token)
+    ran = ran..", "..token
+    assert(not fail:find(token), token)
+  end
+  
   local testsetup = function()
     describe("Internal test", function()
       ran = ""
-      setup(function()       ran=ran..", setup1";       assert(not fail:find("setup1"),       fail) end)
-      before_each(function() ran=ran..", before_each1"; assert(not fail:find("before_each1"), fail) end)
-      after_each(function()  ran=ran..", after_each1";  assert(not fail:find("after_each1"),  fail) end)
-      teardown(function()    ran=ran..", teardown1";    assert(not fail:find("teardown1"),    fail) end)
+      setup(function()          docheck("setup1") end)
+      before_each(function()    docheck("before_each1") end)
+      after_each(function()     docheck("after_each1") end)
+      teardown(function()       docheck("teardown1") end)
       describe("nested", function()
-        setup(function()       ran=ran..", setup2";       assert(not fail:find("setup2"),       fail) end)
-        before_each(function() ran=ran..", before_each2"; assert(not fail:find("before_each2"), fail) end)
-        after_each(function()  ran=ran..", after_each2";  assert(not fail:find("after_each2"),  fail) end)
-        teardown(function()    ran=ran..", teardown2";    assert(not fail:find("teardown2"),    fail) end)
+        setup(function()        docheck("setup2") end)
+        before_each(function()  docheck("before_each2") end)
+        after_each(function()   docheck("after_each2") end)
+        teardown(function()     docheck("teardown2") end)
         it("does the test", 
-          function()           ran=ran..", test1"         assert(not fail:find("test1"),        fail) end)
+          function()            docheck("test1") end)
       end)
     end)
   end
@@ -480,7 +486,7 @@ describe("Check errors in setup/teardown/before_each/after_each to be reported c
   
   it("tests after_each1 + test1 failure being reported properly", function()
     fail = "after_each1, test1"
-    runtest("the 'setup' method of context 'nested' failed")
+    runtest(": test1")
     assert(    ran:find("before_each1",1,true), "'before_each1' should have run")
     assert(    ran:find("setup1",      1,true), "'setup1' should have run")
     assert(    ran:find("setup2",      1,true), "'setup2' should have run")
@@ -492,11 +498,33 @@ describe("Check errors in setup/teardown/before_each/after_each to be reported c
     assert(    ran:find("teardown1",   1,true), "'teardown1' should have run")
   end)
   
-  --[[
-  combies
-  after_each + test
-  teardown + test
-  after_each + teardown + test
-  --]]
+  it("tests teardown1 + test1 failure being reported properly", function()
+    fail = "teardown1, test1"
+    runtest(": test1")
+    assert(    ran:find("before_each1",1,true), "'before_each1' should have run")
+    assert(    ran:find("setup1",      1,true), "'setup1' should have run")
+    assert(    ran:find("setup2",      1,true), "'setup2' should have run")
+    assert(    ran:find("before_each2",1,true), "'before_each2' should have run")
+    assert(    ran:find("test1",       1,true), "'test1' should have run")
+    assert(    ran:find("after_each2", 1,true), "'after_each2' should have run")
+    assert(    ran:find("teardown2",   1,true), "'teardown2' should have run")
+    assert(    ran:find("after_each1", 1,true), "'after_each1' should have run")
+    assert(    ran:find("teardown1",   1,true), "'teardown1' should have run")
+  end)
+  
+  it("tests after_each1, teardown1 + test1 failure being reported properly", function()
+    fail = "after_each1, teardown1, test1"
+    runtest(": test1")
+    assert(    ran:find("before_each1",1,true), "'before_each1' should have run")
+    assert(    ran:find("setup1",      1,true), "'setup1' should have run")
+    assert(    ran:find("setup2",      1,true), "'setup2' should have run")
+    assert(    ran:find("before_each2",1,true), "'before_each2' should have run")
+    assert(    ran:find("test1",       1,true), "'test1' should have run")
+    assert(    ran:find("after_each2", 1,true), "'after_each2' should have run")
+    assert(    ran:find("teardown2",   1,true), "'teardown2' should have run")
+    assert(    ran:find("after_each1", 1,true), "'after_each1' should have run")
+    assert(    ran:find("teardown1",   1,true), "'teardown1' should have run")
+  end)
+
 end)
 

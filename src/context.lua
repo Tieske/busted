@@ -209,3 +209,28 @@ function context:getstatuses(t)
   end
   return t
 end
+
+-- returns the status table of a specified test
+-- or nil if not found (or an error if found more than once)
+function context:gettest(testname)
+  assert(context:class_of(self), "expected self to be a context class")
+  local result
+  for _, t in ipairs(self.list) do
+    if context:class_of(t) then
+      t = t:gettest(testname)
+      if t and result then
+        error("test name '"..testname.."' was found more than once, please use unique names")
+      else
+        result = t
+      end
+    else
+      if t.description == testname then
+        if result then
+          error("test name '"..testname.."' was found more than once, please use unique names")
+        end
+        result = t
+      end
+    end
+  end
+  return result
+end
